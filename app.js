@@ -1,56 +1,43 @@
-let express = require('express'),
-  path = require('path'),
-  mongoose = require('mongoose'),
-  cors = require('cors'),
-  bodyParser = require('body-parser'),
-  dataBaseConfig = require('./database/db');
+var express     = require('express');
+var bodyParser  = require('body-parser');
+var passport	= require('passport');
+var mongoose    = require('mongoose');
+var config      = require('./config/config');
+var cors        = require('cors');
+var port        = process.env.PORT || 5000; 
 
-// Connecting mongoDB
-mongoose.Promise = global.Promise;
-mongoose.connect(dataBaseConfig.db, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  useFindAndModify: false
-}).then(() => {
-  console.log('Database connected sucessfully ')
-},
-  error => {
-    console.log('Could not connected to database : ' + error)
-  }
-)
+var app = express();
 
-const songRoute = require('./routes/song.route')
-
-const app = express();
+// get our request parameters
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({
-  extended: false
-}));
 app.use(cors());
-
-// RESTful API root
-app.use('/api', songRoute)
-
-// PORT
-const port = process.env.PORT || 3000;
-
-app.listen(port, () => {
-  console.log('PORT Connected on: ' + port)
-})
-
-// Find 404 and hand over to error handler
-app.use((req, res, next) => {
-  next(createError(404));
+// Use the passport package in our application
+app.use(passport.initialize());
+var passportMiddleware = require('./middleware/passport');
+passport.use(passportMiddleware);
+ 
+// Demo Route (GET http://localhost:5000)
+app.get('/', function(req, res) {
+  return res.send('Hello! The API is at http://localhost:' + port + '/api');
 });
 
-// Find 404 and hand over to error handler
-app.use((req, res, next) => {
-  next(createError(404));
+var routes = require('./routes');
+app.use('/api', routes);
+
+mongoose.connect(config.db, { useNewUrlParser: true , useCreateIndex: true});
+
+const connection = mongoose.connection;
+
+connection.once('open', () => {
+    console.log('MongoDB database connection established successfully!');
 });
 
-// error handler
-app.use(function (err, req, res, next) {
-  console.error(err.message);
-  if (!err.statusCode) err.statusCode = 500;
-  res.status(err.statusCode).send(err.message);
+connection.on('error', (err) => {
+    console.log("MongoDB connection error. Please make sure MongoDB is running. " + err);
+    process.exit();
 });
+ 
+// Start the server
+app.listen(port);
+console.log('There will be dragons: http://localhost:' + port);
